@@ -1,0 +1,96 @@
+// Prisma schema file,
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Service {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  owner        String
+  criticality  String   @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
+  status       String   @default("HEALTHY") // HEALTHY | DEGRADED | FAILED
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Services that depend on this service (incoming edges)
+  dependedOnBy Dependency[] @relation("DependedOnBy")
+
+  // Services this service depends on (outgoing edges)
+  dependsOn    Dependency[] @relation("DependsOn")
+
+  simulationsAsFailure   SimulationFailure[]
+  impactedIn             ImpactedService[]
+
+  @@index([name])
+  @@index([owner])
+  @@index([status])
+  @@index([criticality])
+}
+
+model Dependency {
+  id                  String   @id @default(uuid())
+  // The service that has the dependency
+  serviceId           String
+  // The service being depended on
+  dependsOnServiceId  String
+  createdAt           DateTime @default(now())
+
+  service             Service  @relation("DependsOn", fields: [serviceId], references: [id], onDelete: Cascade)
+  dependsOn           Service  @relation("DependedOnBy", fields: [dependsOnServiceId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, dependsOnServiceId])
+  @@index([serviceId])
+  @@index([dependsOnServiceId])
+}
+
+model Simulation {
+  id              String   @id @default(uuid())
+  name            String?
+  severity        String   // LOW | MEDIUM | HIGH | CRITICAL
+  blastRadius     Int      // number of affected services
+  affectedCount   Int
+  maxDepth        Int
+  totalRiskScore  Float
+  status          String   @default("COMPLETED") // RUNNING | COMPLETED | FAILED
+  createdAt       DateTime @default(now())
+
+  failedServices  SimulationFailure[]
+  impactedServices ImpactedService[]
+}
+
+model SimulationFailure {
+  id            String   @id @default(uuid())
+  simulationId  String
+  serviceId     String
+  serviceName   String
+  createdAt     DateTime @default(now())
+
+  simulation    Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  service       Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([simulationId])
+}
+
+model ImpactedService {
+  id            String   @id @default(uuid())
+  simulationId  String
+  serviceId     String
+  serviceName   String
+  depth         Int
+  path          String   // JSON-stringified path of service names
+  status        String   // FAILED | DEGRADED | AT_RISK
+  createdAt     DateTime @default(now())
+
+  simulation    Simulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  service       Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([simulationId])
+}
