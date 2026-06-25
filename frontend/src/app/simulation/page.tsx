@@ -9,17 +9,18 @@ import {
   CircularProgress,
   Divider,
   Grid,
-  IconButton,
   Paper,
   Stack,
   TextField,
-  Tooltip,
   Typography,
   Alert,
   Snackbar,
+  LinearProgress,
 } from "@mui/material";
 import BoltIcon from "@mui/icons-material/Bolt";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import CheckIcon from "@mui/icons-material/Check";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlined";
 import useSWR from "swr";
 import TopBar from "@/components/layout/TopBar";
 import { api } from "@/lib/api";
@@ -45,8 +46,6 @@ export default function SimulationPage() {
 
   const { isRunning, liveImpacts, finalResult, failedServices, reset } = useSimulationStore();
 
-  // When the simulation ends via socket, we already have the final summary.
-  // But we keep the full result from the POST response for the full impact list.
   useEffect(() => {
     if (finalResult && result) {
       setRunning(false);
@@ -77,7 +76,13 @@ export default function SimulationPage() {
     }
   }
 
-  function clearSelection() {
+  function runAgain() {
+    reset();
+    setResult(null);
+    setRunning(false);
+  }
+
+  function clearAll() {
     setSelected(new Set());
     setName("");
   }
@@ -86,23 +91,29 @@ export default function SimulationPage() {
     (a, b) => a.depth - b.depth || a.serviceName.localeCompare(b.serviceName),
   );
 
+  const sortedServices = [...(services ?? [])].sort((a, b) => {
+    const critOrder = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+    return critOrder[a.criticality] - critOrder[b.criticality];
+  });
+
   return (
     <>
-      <TopBar title="Failure Simulation" subtitle="Simulate service outages and observe blast radius" />
+      <TopBar title="Failure Simulation" subtitle="Simulate outages and observe cascading blast radius" />
       <Box sx={{ p: 4 }}>
         <Grid container spacing={3}>
-          {/* Service selector */}
+          {/* ── Left: service selector ─────────────────────────────── */}
           <Grid size={{ xs: 12, md: 5 }}>
             <Card sx={{ height: "100%" }}>
               <CardContent>
                 <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mb: 2 }}>
                   <Typography variant="h6">Select Services to Fail</Typography>
                   {selected.size > 0 && (
-                    <Button size="small" startIcon={<RestartAltIcon />} onClick={clearSelection}>
-                      Clear
+                    <Button size="small" startIcon={<RestartAltIcon />} onClick={clearAll} sx={{ color: "#94a3b8" }}>
+                      Clear ({selected.size})
                     </Button>
                   )}
                 </Stack>
+
                 <TextField
                   label="Simulation name (optional)"
                   size="small"
@@ -112,50 +123,53 @@ export default function SimulationPage() {
                   placeholder="e.g. Auth outage drill"
                   sx={{ mb: 2 }}
                 />
-                <Box sx={{ maxHeight: 400, overflow: "auto", pr: 1 }}>
+
+                <Box sx={{ maxHeight: 420, overflow: "auto", pr: 0.5 }}>
                   <Stack spacing={1}>
-                    {(services ?? []).map((s) => {
+                    {sortedServices.map((s) => {
                       const isSelected = selected.has(s.id);
+                      const color = CRITICALITY_COLOR[s.criticality];
                       return (
                         <Paper
                           key={s.id}
                           variant="outlined"
+                          onClick={() => toggle(s.id)}
                           sx={{
                             p: 1.5,
                             cursor: "pointer",
-                            border: isSelected ? "2px solid" : "1px solid",
-                            borderColor: isSelected ? "primary.main" : "divider",
-                            backgroundColor: isSelected ? "rgba(99,102,241,0.08)" : "transparent",
-                            transition: "all 0.15s",
-                            "&:hover": { borderColor: "primary.main" },
+                            border: isSelected ? `2px solid ${color}` : "1px solid rgba(255,255,255,0.06)",
+                            backgroundColor: isSelected ? `${color}0d` : "transparent",
+                            boxShadow: isSelected ? `0 0 16px ${color}22` : "none",
+                            transition: "all 0.18s ease",
+                            "&:hover": {
+                              borderColor: color,
+                              backgroundColor: `${color}08`,
+                            },
                           }}
-                          onClick={() => toggle(s.id)}
                         >
                           <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                             <Box
                               sx={{
-                                width: 18,
-                                height: 18,
-                                borderRadius: "50%",
-                                border: "2px solid",
-                                borderColor: isSelected ? "primary.main" : "rgba(255,255,255,0.2)",
-                                backgroundColor: isSelected ? "primary.main" : "transparent",
+                                width: 20,
+                                height: 20,
+                                borderRadius: 1,
+                                border: `2px solid`,
+                                borderColor: isSelected ? color : "rgba(255,255,255,0.15)",
+                                backgroundColor: isSelected ? color : "transparent",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                fontSize: 11,
-                                color: "white",
-                                fontWeight: 700,
                                 flexShrink: 0,
+                                transition: "all 0.18s",
                               }}
                             >
-                              {isSelected ? "" : ""}
+                              {isSelected && <CheckIcon sx={{ fontSize: 12, color: "white" }} />}
                             </Box>
                             <Box sx={{ flex: 1, minWidth: 0 }}>
                               <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
                                 {s.name}
                               </Typography>
-                              <Typography variant="caption" color="text.secondary">
+                              <Typography variant="caption" sx={{ color: "#475569" }}>
                                 {s.owner}
                               </Typography>
                             </Box>
@@ -164,10 +178,11 @@ export default function SimulationPage() {
                               size="small"
                               sx={{
                                 height: 18,
-                                fontSize: 10,
-                                backgroundColor: `${CRITICALITY_COLOR[s.criticality]}22`,
-                                color: CRITICALITY_COLOR[s.criticality],
+                                fontSize: "0.65rem",
+                                backgroundColor: `${color}18`,
+                                color,
                                 fontWeight: 700,
+                                "& .MuiChip-label": { px: 0.75 },
                               }}
                             />
                           </Stack>
@@ -176,7 +191,9 @@ export default function SimulationPage() {
                     })}
                   </Stack>
                 </Box>
+
                 <Divider sx={{ my: 2 }} />
+
                 <Button
                   variant="contained"
                   color="error"
@@ -185,148 +202,198 @@ export default function SimulationPage() {
                   startIcon={running ? <CircularProgress size={18} color="inherit" /> : <BoltIcon />}
                   onClick={run}
                   disabled={running || selected.size === 0}
+                  sx={{ py: 1.5 }}
                 >
-                  {running ? "Simulating..." : `Simulate ${selected.size} Failure${selected.size === 1 ? "" : "s"}`}
+                  {running
+                    ? "Simulating cascade…"
+                    : `Simulate ${selected.size > 0 ? selected.size : ""} Failure${selected.size === 1 ? "" : "s"}`}
                 </Button>
               </CardContent>
             </Card>
           </Grid>
 
-          {/* Impact panel */}
+          {/* ── Right: impact panel ────────────────────────────────── */}
           <Grid size={{ xs: 12, md: 7 }}>
             <Card sx={{ minHeight: 600 }}>
               <CardContent>
                 <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mb: 2 }}>
                   <Typography variant="h6">Impact Analysis</Typography>
-                  {isRunning && (
-                    <Chip
-                      icon={<CircularProgress size={14} />}
-                      label="Live"
-                      color="warning"
-                      size="small"
-                      sx={{ fontWeight: 700 }}
-                    />
-                  )}
+                  <Stack direction="row" spacing={1}>
+                    {isRunning && (
+                      <Chip
+                        icon={<CircularProgress size={12} sx={{ color: "#fbbf24 !important" }} />}
+                        label="Propagating"
+                        size="small"
+                        sx={{
+                          backgroundColor: "rgba(245,158,11,0.15)",
+                          color: "#fbbf24",
+                          border: "1px solid rgba(245,158,11,0.3)",
+                          fontWeight: 600,
+                        }}
+                      />
+                    )}
+                    {!isRunning && finalResult && (
+                      <Button size="small" startIcon={<RestartAltIcon />} onClick={runAgain} sx={{ color: "#94a3b8" }}>
+                        Run Again
+                      </Button>
+                    )}
+                  </Stack>
                 </Stack>
 
+                {/* Empty state */}
                 {!running && !result && (
-                  <Box sx={{ textAlign: "center", py: 8 }}>
-                    <BoltIcon sx={{ fontSize: 64, color: "text.secondary", mb: 2 }} />
-                    <Typography color="text.secondary">
-                      Select services and run a simulation to see the impact analysis.
+                  <Box
+                    sx={{
+                      textAlign: "center",
+                      py: 8,
+                      background: "linear-gradient(180deg, rgba(99,102,241,0.03) 0%, transparent 100%)",
+                      borderRadius: 3,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 72,
+                        height: 72,
+                        borderRadius: "50%",
+                        backgroundColor: "rgba(99,102,241,0.08)",
+                        border: "1px solid rgba(99,102,241,0.2)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        mx: "auto",
+                        mb: 2.5,
+                      }}
+                    >
+                      <BoltIcon sx={{ fontSize: 36, color: "#6366f1" }} />
+                    </Box>
+                    <Typography variant="h6" sx={{ fontWeight: 600, color: "#334155", mb: 1 }}>
+                      No active simulation
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#475569" }}>
+                      Select services on the left and click Simulate to observe the blast radius cascade.
                     </Typography>
                   </Box>
                 )}
 
                 {(running || result) && (
                   <>
-                    {/* Summary */}
-                    {finalResult && (
-                      <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
-                        <SummaryChip
-                          label="Severity"
-                          value={finalResult.severity}
-                          color={SEVERITY_COLOR[finalResult.severity]}
-                        />
-                        <SummaryChip
-                          label="Blast Radius"
-                          value={finalResult.blastRadius.toString()}
-                          color="#6366f1"
-                        />
-                        <SummaryChip
-                          label="Risk Score"
-                          value={finalResult.totalRiskScore.toString()}
-                          color="#f59e0b"
-                        />
+                    {/* Loading bar while streaming */}
+                    {isRunning && (
+                      <LinearProgress
+                        sx={{
+                          mb: 2,
+                          borderRadius: 2,
+                          "& .MuiLinearProgress-bar": { backgroundColor: "#f59e0b" },
+                          backgroundColor: "rgba(245,158,11,0.15)",
+                        }}
+                      />
+                    )}
+
+                    {/* Summary chips */}
+                    {finalResult ? (
+                      <Stack direction="row" spacing={1.5} sx={{ mb: 3, flexWrap: "wrap" }} useFlexGap>
+                        <SummaryChip label="Severity" value={finalResult.severity} color={SEVERITY_COLOR[finalResult.severity]} />
+                        <SummaryChip label="Blast Radius" value={`${finalResult.blastRadius} services`} color="#6366f1" />
+                        <SummaryChip label="Risk Score" value={finalResult.totalRiskScore.toString()} color="#f59e0b" />
+                      </Stack>
+                    ) : (
+                      <Stack direction="row" spacing={1.5} sx={{ mb: 3, flexWrap: "wrap" }} useFlexGap>
+                        <SummaryChip label="Severity" value="…" color="#6366f1" />
+                        <SummaryChip label="Blast Radius" value={`${sortedImpacts.filter(i => i.depth > 0).length} so far`} color="#6366f1" />
+                        <SummaryChip label="Risk Score" value="…" color="#6366f1" />
                       </Stack>
                     )}
 
-                    {running && !finalResult && (
-                      <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
-                        <SummaryChip label="Severity" value="..." color="#6366f1" />
-                        <SummaryChip label="Blast Radius" value={sortedImpacts.length.toString()} color="#6366f1" />
-                        <SummaryChip label="Risk Score" value="..." color="#6366f1" />
-                      </Stack>
-                    )}
-
-                    <Typography variant="subtitle2" gutterBottom color="text.secondary">
-                      Failed services
+                    {/* Failed services */}
+                    <Typography variant="caption" sx={{ color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, display: "block", mb: 1 }}>
+                      Failed
                     </Typography>
-                    <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: "wrap" }} useFlexGap>
+                    <Stack direction="row" spacing={1} sx={{ mb: 2.5, flexWrap: "wrap" }} useFlexGap>
                       {failedServices.map((f) => (
                         <Chip
                           key={f.id}
                           label={f.name}
                           size="small"
+                          icon={<ErrorOutlineIcon sx={{ fontSize: "14px !important", color: "#ef4444 !important" }} />}
                           sx={{
-                            backgroundColor: "rgba(239, 68, 68, 0.15)",
+                            backgroundColor: "rgba(239,68,68,0.12)",
                             color: "#ef4444",
+                            border: "1px solid rgba(239,68,68,0.25)",
                             fontWeight: 700,
-                            mb: 0.5,
                           }}
                         />
                       ))}
                     </Stack>
 
-                    <Typography variant="subtitle2" gutterBottom color="text.secondary">
-                      Impacted services ({sortedImpacts.filter((i) => i.depth > 0).length})
+                    {/* Impacted list */}
+                    <Typography variant="caption" sx={{ color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, display: "block", mb: 1 }}>
+                      Impacted ({sortedImpacts.filter((i) => i.depth > 0).length})
                     </Typography>
-                    <Box sx={{ maxHeight: 400, overflow: "auto" }}>
+                    <Box sx={{ maxHeight: 380, overflow: "auto", pr: 0.5 }}>
                       <Stack spacing={1}>
-                        {sortedImpacts.filter((i) => i.depth > 0).length === 0 && running && (
-                          <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-                            Propagating failure...
+                        {sortedImpacts.filter((i) => i.depth > 0).length === 0 && isRunning && (
+                          <Typography variant="body2" sx={{ color: "#475569", py: 2, textAlign: "center" }}>
+                            Propagating failure cascade…
                           </Typography>
                         )}
                         {sortedImpacts
                           .filter((i) => i.depth > 0)
-                          .map((impact) => (
-                            <Paper
-                              key={impact.serviceId}
-                              variant="outlined"
-                              sx={{
-                                p: 1.5,
-                                borderLeft: `3px solid ${STATUS_COLOR[impact.status]}`,
-                                backgroundColor: `${STATUS_COLOR[impact.status]}08`,
-                                animation: "fadeIn 0.4s ease",
-                              }}
-                            >
-                              <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-                                <Chip
-                                  label={`Depth ${impact.depth}`}
-                                  size="small"
-                                  sx={{
-                                    height: 20,
-                                    fontSize: 10,
-                                    fontWeight: 700,
-                                    minWidth: 70,
-                                    backgroundColor: "rgba(255,255,255,0.06)",
-                                  }}
-                                />
-                                <Box sx={{ flex: 1, minWidth: 0 }}>
-                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                    {impact.serviceName}
-                                  </Typography>
-                                  <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                    sx={{ display: "block" }}
+                          .map((impact) => {
+                            const borderColor = STATUS_COLOR[impact.status];
+                            return (
+                              <Paper
+                                key={impact.serviceId}
+                                variant="outlined"
+                                sx={{
+                                  p: 1.5,
+                                  borderLeft: `3px solid ${borderColor}`,
+                                  backgroundColor: `${borderColor}06`,
+                                  animation: "slideInLeft 0.35s ease",
+                                  border: `1px solid rgba(255,255,255,0.06)`,
+                                  borderLeftColor: borderColor,
+                                }}
+                              >
+                                <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+                                  <Box
+                                    sx={{
+                                      minWidth: 64,
+                                      textAlign: "center",
+                                      p: 0.5,
+                                      borderRadius: 1,
+                                      backgroundColor: "rgba(255,255,255,0.04)",
+                                    }}
                                   >
-                                    Path: {impact.path.join(" → ")}
-                                  </Typography>
-                                </Box>
-                                <Chip
-                                  label={impact.status}
-                                  size="small"
-                                  sx={{
-                                    backgroundColor: `${STATUS_COLOR[impact.status]}22`,
-                                    color: STATUS_COLOR[impact.status],
-                                    fontWeight: 700,
-                                  }}
-                                />
-                              </Stack>
-                            </Paper>
-                          ))}
+                                    <Typography variant="caption" sx={{ color: "#475569", display: "block", fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                                      Depth
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 800, color: "#94a3b8" }}>
+                                      {impact.depth}
+                                    </Typography>
+                                  </Box>
+                                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                      {impact.serviceName}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ color: "#475569", display: "block" }}>
+                                      {impact.path.join(" → ")}
+                                    </Typography>
+                                  </Box>
+                                  <Chip
+                                    label={impact.status}
+                                    size="small"
+                                    sx={{
+                                      backgroundColor: `${borderColor}18`,
+                                      color: borderColor,
+                                      fontWeight: 700,
+                                      border: `1px solid ${borderColor}33`,
+                                      height: 22,
+                                      "& .MuiChip-label": { px: 1 },
+                                    }}
+                                  />
+                                </Stack>
+                              </Paper>
+                            );
+                          })}
                       </Stack>
                     </Box>
                   </>
@@ -349,13 +416,6 @@ export default function SimulationPage() {
           </Alert>
         ) : undefined}
       </Snackbar>
-
-      <style jsx global>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateX(-8px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
-      `}</style>
     </>
   );
 }
@@ -365,17 +425,18 @@ function SummaryChip({ label, value, color }: { label: string; value: string; co
     <Box
       sx={{
         flex: 1,
+        minWidth: 110,
         p: 1.5,
         borderRadius: 2,
-        backgroundColor: `${color}11`,
-        border: `1px solid ${color}33`,
+        backgroundColor: `${color}0d`,
+        border: `1px solid ${color}2a`,
         textAlign: "center",
       }}
     >
-      <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 1 }}>
+      <Typography variant="caption" sx={{ color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, display: "block" }}>
         {label}
       </Typography>
-      <Typography variant="h5" sx={{ fontWeight: 700, color }}>
+      <Typography variant="h6" sx={{ fontWeight: 800, color, letterSpacing: "-0.01em" }}>
         {value}
       </Typography>
     </Box>

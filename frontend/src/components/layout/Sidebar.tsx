@@ -11,7 +11,6 @@ import {
   ListItemText,
   Typography,
   Divider,
-  Chip,
 } from "@mui/material";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import StorageIcon from "@mui/icons-material/Storage";
@@ -23,11 +22,11 @@ import HubIcon from "@mui/icons-material/Hub";
 const DRAWER_WIDTH = 260;
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: <DashboardIcon /> },
-  { href: "/services", label: "Services", icon: <StorageIcon /> },
-  { href: "/graph", label: "Graph", icon: <AccountTreeIcon /> },
-  { href: "/simulation", label: "Simulate", icon: <BoltIcon /> },
-  { href: "/history", label: "History", icon: <HistoryIcon /> },
+  { href: "/dashboard", label: "Dashboard", icon: <DashboardIcon fontSize="small" /> },
+  { href: "/services", label: "Services", icon: <StorageIcon fontSize="small" /> },
+  { href: "/graph", label: "Graph", icon: <AccountTreeIcon fontSize="small" /> },
+  { href: "/simulation", label: "Simulate", icon: <BoltIcon fontSize="small" /> },
+  { href: "/history", label: "History", icon: <HistoryIcon fontSize="small" /> },
 ];
 
 export default function Sidebar() {
@@ -42,24 +41,61 @@ export default function Sidebar() {
         [`& .MuiDrawer-paper`]: {
           width: DRAWER_WIDTH,
           boxSizing: "border-box",
-          backgroundColor: "#0d1320",
+          backgroundColor: "#080c18",
           borderRight: "1px solid rgba(255,255,255,0.06)",
+          backgroundImage:
+            "linear-gradient(180deg, rgba(99,102,241,0.04) 0%, transparent 40%)",
         },
       }}
     >
-      <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 1.5 }}>
-        <HubIcon sx={{ color: "primary.main", fontSize: 32 }} />
+      {/* Logo */}
+      <Box
+        sx={{
+          p: 3,
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          background: "linear-gradient(135deg, rgba(99,102,241,0.08) 0%, transparent 100%)",
+        }}
+      >
+        <Box
+          sx={{
+            width: 38,
+            height: 38,
+            borderRadius: 2,
+            background: "linear-gradient(135deg, #6366f1 0%, #818cf8 100%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 4px 14px rgba(99,102,241,0.45)",
+            flexShrink: 0,
+          }}
+        >
+          <HubIcon sx={{ color: "white", fontSize: 22 }} />
+        </Box>
         <Box>
-          <Typography variant="h6" sx={{ lineHeight: 1.2 }}>
+          <Typography
+            variant="subtitle1"
+            sx={{
+              fontWeight: 800,
+              lineHeight: 1.2,
+              background: "linear-gradient(135deg, #f1f5f9 0%, #818cf8 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              letterSpacing: "-0.01em",
+            }}
+          >
             Blast Radius
           </Typography>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" sx={{ color: "#475569", fontWeight: 500 }}>
             Simulator
           </Typography>
         </Box>
       </Box>
-      <Divider />
-      <List sx={{ px: 1.5, py: 2 }}>
+
+      {/* Nav */}
+      <List sx={{ px: 1.5, py: 2, flex: 1 }}>
         {navItems.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
@@ -69,11 +105,25 @@ export default function Sidebar() {
                 href={item.href}
                 sx={{
                   borderRadius: 2,
+                  py: 1.1,
                   backgroundColor: active ? "rgba(99, 102, 241, 0.15)" : "transparent",
-                  "&:hover": { backgroundColor: "rgba(99, 102, 241, 0.1)" },
+                  border: active ? "1px solid rgba(99,102,241,0.25)" : "1px solid transparent",
+                  boxShadow: active ? "inset 0 1px 0 rgba(255,255,255,0.06)" : "none",
+                  "&:hover": {
+                    backgroundColor: active
+                      ? "rgba(99, 102, 241, 0.2)"
+                      : "rgba(255,255,255,0.04)",
+                  },
+                  transition: "all 0.18s ease",
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 40, color: active ? "primary.main" : "text.secondary" }}>
+                <ListItemIcon
+                  sx={{
+                    minWidth: 36,
+                    color: active ? "#818cf8" : "#475569",
+                    transition: "color 0.18s",
+                  }}
+                >
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText
@@ -81,38 +131,61 @@ export default function Sidebar() {
                   slotProps={{
                     primary: {
                       sx: {
-                        fontWeight: active ? 600 : 400,
-                        color: active ? "primary.main" : "text.primary",
+                        fontSize: "0.875rem",
+                        fontWeight: active ? 600 : 500,
+                        color: active ? "#c7d2fe" : "#94a3b8",
+                        transition: "color 0.18s",
                       },
                     },
                   }}
                 />
+                {active && (
+                  <Box
+                    sx={{
+                      width: 4,
+                      height: 4,
+                      borderRadius: "50%",
+                      backgroundColor: "#818cf8",
+                      boxShadow: "0 0 8px #818cf8",
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
               </ListItemButton>
             </ListItem>
           );
         })}
       </List>
-      <Box sx={{ mt: "auto", p: 2.5, borderTop: "1px solid rgba(255,255,255,0.06)", mb: 2.5 }}>
+
+      {/* Footer status */}
+      <Box
+        sx={{
+          p: 2.5,
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          background: "linear-gradient(0deg, rgba(99,102,241,0.04) 0%, transparent 100%)",
+        }}
+      >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <Box
             sx={{
               width: 8,
               height: 8,
               borderRadius: "50%",
-              backgroundColor: "success.main",
+              backgroundColor: "#10b981",
               boxShadow: "0 0 12px #10b981",
               animation: "pulse 2s infinite ease-in-out",
-              "@keyframes pulse": {
-                "0%": { opacity: 0.6, transform: "scale(0.95)" },
-                "50%": { opacity: 1, transform: "scale(1.05)" },
-                "100%": { opacity: 0.6, transform: "scale(0.95)" },
-              },
             }}
           />
-          <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 500 }}>
-            Updates active
+          <Typography variant="caption" sx={{ color: "#475569", fontWeight: 500 }}>
+            Live updates active
           </Typography>
         </Box>
+        <Typography
+          variant="caption"
+          sx={{ color: "#1e293b", display: "block", mt: 1.5, fontSize: "0.65rem" }}
+        >
+          v1.0.0 · Blast Radius Simulator
+        </Typography>
       </Box>
     </Drawer>
   );
