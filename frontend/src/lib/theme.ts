@@ -80,27 +80,35 @@ export const theme = createTheme({
           borderRadius: 8,
           transition: "all 0.2s",
         },
-        containedPrimary: {
-          background: "linear-gradient(135deg, #6366f1 0%, #818cf8 100%)",
-          boxShadow: "0 4px 14px rgba(99,102,241,0.3)",
-          "&:hover": {
-            boxShadow: "0 6px 20px rgba(99,102,241,0.45)",
-            transform: "translateY(-1px)",
-          },
-        },
-        containedError: {
-          background: "linear-gradient(135deg, #ef4444 0%, #f87171 100%)",
-          boxShadow: "0 4px 14px rgba(239,68,68,0.3)",
-          "&:hover": {
-            boxShadow: "0 6px 20px rgba(239,68,68,0.45)",
-            transform: "translateY(-1px)",
-          },
-        },
         outlined: {
           borderColor: "rgba(255,255,255,0.12)",
           "&:hover": { borderColor: "#6366f1", backgroundColor: "rgba(99,102,241,0.08)" },
         },
       },
+      variants: [
+        {
+          props: { variant: "contained", color: "primary" },
+          style: {
+            background: "linear-gradient(135deg, #6366f1 0%, #818cf8 100%)",
+            boxShadow: "0 4px 14px rgba(99,102,241,0.3)",
+            "&:hover": {
+              boxShadow: "0 6px 20px rgba(99,102,241,0.45)",
+              transform: "translateY(-1px)",
+            },
+          },
+        },
+        {
+          props: { variant: "contained", color: "error" },
+          style: {
+            background: "linear-gradient(135deg, #ef4444 0%, #f87171 100%)",
+            boxShadow: "0 4px 14px rgba(239,68,68,0.3)",
+            "&:hover": {
+              boxShadow: "0 6px 20px rgba(239,68,68,0.45)",
+              transform: "translateY(-1px)",
+            },
+          },
+        },
+      ],
     },
     MuiChip: {
       styleOverrides: {
