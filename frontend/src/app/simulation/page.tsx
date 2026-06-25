@@ -13,8 +13,6 @@ import {
   Stack,
   TextField,
   Typography,
-  Alert,
-  Snackbar,
   LinearProgress,
 } from "@mui/material";
 import BoltIcon from "@mui/icons-material/Bolt";
@@ -27,6 +25,7 @@ import { api } from "@/lib/api";
 import { fetcher } from "@/lib/fetcher";
 import { CRITICALITY_COLOR, SEVERITY_COLOR, STATUS_COLOR } from "@/lib/theme";
 import { useSimulationStore } from "@/store/simulationStore";
+import { useNotificationStore } from "@/store/notificationStore";
 import { useSimulationSocket } from "@/hooks/useSimulationSocket";
 import type { Service, SimulationResult } from "@/types";
 
@@ -42,7 +41,7 @@ export default function SimulationPage() {
   const [name, setName] = useState("");
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<SimulationResult | null>(null);
-  const [snack, setSnack] = useState<{ msg: string; severity: "error" | "success" } | null>(null);
+  const addToast = useNotificationStore((state) => state.addToast);
 
   const { isRunning, liveImpacts, finalResult, failedServices, reset } = useSimulationStore();
 
@@ -61,7 +60,7 @@ export default function SimulationPage() {
 
   async function run() {
     if (selected.size === 0) {
-      setSnack({ msg: "Select at least one service to fail", severity: "error" });
+      addToast("Select at least one service to fail", "error");
       return;
     }
     reset();
@@ -71,7 +70,7 @@ export default function SimulationPage() {
       const r = await api.runSimulation(Array.from(selected), name || undefined);
       setResult(r);
     } catch (e: any) {
-      setSnack({ msg: e.message || "Simulation failed", severity: "error" });
+      addToast(e.message || "Simulation failed", "error");
       setRunning(false);
     }
   }
@@ -404,18 +403,6 @@ export default function SimulationPage() {
         </Grid>
       </Box>
 
-      <Snackbar
-        open={!!snack}
-        autoHideDuration={4000}
-        onClose={() => setSnack(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        {snack ? (
-          <Alert severity={snack.severity} onClose={() => setSnack(null)} variant="filled">
-            {snack.msg}
-          </Alert>
-        ) : undefined}
-      </Snackbar>
     </>
   );
 }

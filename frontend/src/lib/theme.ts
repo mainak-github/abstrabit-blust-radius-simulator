@@ -167,11 +167,6 @@ export const theme = createTheme({
         },
       },
     },
-    MuiSnackbar: {
-      styleOverrides: {
-        root: { zIndex: 9999 },
-      },
-    },
   },
 });
 

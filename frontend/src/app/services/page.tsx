@@ -18,8 +18,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Snackbar,
-  Alert,
   CircularProgress,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -34,6 +32,7 @@ import TopBar from "@/components/layout/TopBar";
 import { api } from "@/lib/api";
 import { fetcher } from "@/lib/fetcher";
 import { CRITICALITY_COLOR, STATUS_COLOR } from "@/lib/theme";
+import { useNotificationStore } from "@/store/notificationStore";
 import type { Criticality, Service, ServiceStatus } from "@/types";
 
 export default function ServicesPage() {
@@ -51,8 +50,9 @@ export default function ServicesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Service | null>(null);
   const [depDialogFor, setDepDialogFor] = useState<Service | null>(null);
-
-  const [snack, setSnack] = useState<{ msg: string; severity: "success" | "error" } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const addToast = useNotificationStore((state) => state.addToast);
 
   function clearFilters() {
     setSearch("");
@@ -85,14 +85,18 @@ export default function ServicesPage() {
     return true;
   });
 
-  async function handleDelete(id: string, name: string) {
-    if (!confirm(`Delete service "${name}"? This will also remove all its dependencies.`)) return;
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await api.deleteService(id);
+      await api.deleteService(deleteTarget.id);
       mutate();
-      setSnack({ msg: `Deleted ${name}`, severity: "success" });
+      addToast(`Deleted ${deleteTarget.name}`, "success");
+      setDeleteTarget(null);
     } catch (e: any) {
-      setSnack({ msg: e.message || "Failed to delete", severity: "error" });
+      addToast(e.message || "Failed to delete", "error");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -228,7 +232,7 @@ export default function ServicesPage() {
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete">
-                          <IconButton size="small" onClick={() => handleDelete(s.id, s.name)}>
+                          <IconButton size="small" onClick={() => setDeleteTarget({ id: s.id, name: s.name })}>
                             <DeleteIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
@@ -293,9 +297,9 @@ export default function ServicesPage() {
           onSaved={() => {
             setCreateOpen(false);
             mutate();
-            setSnack({ msg: "Service created", severity: "success" });
+            addToast("Service created", "success");
           }}
-          onError={(msg) => setSnack({ msg, severity: "error" })}
+          onError={(msg) => addToast(msg, "error")}
         />
       )}
       {editing && (
@@ -305,9 +309,9 @@ export default function ServicesPage() {
           onSaved={() => {
             setEditing(null);
             mutate();
-            setSnack({ msg: "Service updated", severity: "success" });
+            addToast("Service updated", "success");
           }}
-          onError={(msg) => setSnack({ msg, severity: "error" })}
+          onError={(msg) => addToast(msg, "error")}
         />
       )}
       {depDialogFor && (
@@ -316,23 +320,25 @@ export default function ServicesPage() {
           allServices={services ?? []}
           onClose={() => setDepDialogFor(null)}
           onChange={() => mutate()}
-          onError={(msg) => setSnack({ msg, severity: "error" })}
-          onSuccess={(msg) => setSnack({ msg, severity: "success" })}
+          onError={(msg) => addToast(msg, "error")}
+          onSuccess={(msg) => addToast(msg, "success")}
         />
       )}
 
-      <Snackbar
-        open={!!snack}
-        autoHideDuration={4000}
-        onClose={() => setSnack(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        {snack ? (
-          <Alert severity={snack.severity} onClose={() => setSnack(null)} variant="filled">
-            {snack.msg}
-          </Alert>
-        ) : undefined}
-      </Snackbar>
+      <Dialog open={!!deleteTarget} onClose={() => !deleting && setDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Delete service?</DialogTitle>
+        <DialogContent>
+          <Typography color="text.secondary">
+            Delete “{deleteTarget?.name}”? This will also remove all of its dependencies.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={handleDelete} disabled={deleting}>
+            {deleting ? <CircularProgress size={20} color="inherit" /> : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }
